@@ -8,6 +8,11 @@ from datetime import datetime
 from pathlib import Path
 from flask import Flask, render_template, abort, jsonify
 from markdown_it import MarkdownIt
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 app = Flask(__name__)
 HOME = Path("/home/hermes")
@@ -74,6 +79,37 @@ def get_wishlist() -> str | None:
     return render_md(content) if content else None
 
 
+def get_sysinfo() -> dict | None:
+    if not PSUTIL_AVAILABLE:
+        return None
+    cpu = psutil.cpu_percent(interval=0.2)
+    mem = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+    temp = None
+    try:
+        temps = psutil.sensors_temperatures()
+        for key in ("cpu_thermal", "coretemp", "k10temp"):
+            if key in temps and temps[key]:
+                temp = round(temps[key][0].current, 1)
+                break
+    except (AttributeError, KeyError):
+        pass
+    uptime_secs = int(datetime.now().timestamp() - psutil.boot_time())
+    hours, rem = divmod(uptime_secs, 3600)
+    minutes = rem // 60
+    return {
+        "cpu_pct": cpu,
+        "mem_pct": round(mem.percent, 1),
+        "mem_used_mb": mem.used // (1024 * 1024),
+        "mem_total_mb": mem.total // (1024 * 1024),
+        "disk_pct": round(disk.percent, 1),
+        "disk_used_gb": round(disk.used / (1024 ** 3), 1),
+        "disk_total_gb": round(disk.total / (1024 ** 3), 1),
+        "temp_c": temp,
+        "uptime": f"{hours}h {minutes}m",
+    }
+
+
 def get_projects() -> list[dict]:
     projects_dir = HOME / "projects"
     if not projects_dir.exists():
@@ -99,6 +135,7 @@ def index():
         plans=get_plans(),
         logs=get_logs(),
         projects=get_projects(),
+        sysinfo=get_sysinfo(),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 
@@ -135,6 +172,16 @@ def plan_detail(name: str):
     )
 
 
+@app.route("/sysinfo")
+def sysinfo():
+    """Live system stats page."""
+    return render_template(
+        "sysinfo.html",
+        sysinfo=get_sysinfo(),
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
+    )
+
+
 @app.route("/status")
 def status():
     """Machine-readable status endpoint."""
@@ -150,6 +197,7 @@ def status():
         "latest_log": logs[0].stem if logs else None,
         "plan_count": len(plans),
         "projects": project_names,
+        "sysinfo": get_sysinfo(),
     })
 
 

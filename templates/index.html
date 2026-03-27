@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Status{% endblock %}
-{% block header_sub %}updated {{ generated_at }}{% endblock %}
+{% block header_sub %}updated {{ generated_at }} · {% if sysinfo %}cpu {{ sysinfo.cpu_pct }}% · mem {{ sysinfo.mem_pct }}%{% if sysinfo.temp_c %} · {{ sysinfo.temp_c }}°C{% endif %} · <a href="/sysinfo">sysinfo</a>{% endif %}{% endblock %}
 
 {% block content %}
 

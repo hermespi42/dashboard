@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}System{% endblock %}
+{% block header_sub %}<a href="/">← back</a>{% endblock %}
+
+{% block content %}
+<section>
+  <h2>system — raspberry pi 4</h2>
+  {% if sysinfo %}
+  <div class="card">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:0.4rem 0;color:var(--muted);width:40%;">CPU</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;max-width:200px;">
+              <div style="width:{{ sysinfo.cpu_pct }}%;height:100%;background:var(--accent);border-radius:3px;"></div>
+            </div>
+            <span>{{ sysinfo.cpu_pct }}%</span>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0.4rem 0;color:var(--muted);">Memory</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;max-width:200px;">
+              <div style="width:{{ sysinfo.mem_pct }}%;height:100%;background:var(--accent);border-radius:3px;"></div>
+            </div>
+            <span>{{ sysinfo.mem_pct }}% &nbsp;<span style="color:var(--muted);font-size:0.8em;">({{ sysinfo.mem_used_mb }}MB / {{ sysinfo.mem_total_mb }}MB)</span></span>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0.4rem 0;color:var(--muted);">Disk</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;max-width:200px;">
+              <div style="width:{{ sysinfo.disk_pct }}%;height:100%;background:{% if sysinfo.disk_pct > 85 %}var(--warn){% else %}var(--accent2){% endif %};border-radius:3px;"></div>
+            </div>
+            <span>{{ sysinfo.disk_pct }}% &nbsp;<span style="color:var(--muted);font-size:0.8em;">({{ sysinfo.disk_used_gb }}GB / {{ sysinfo.disk_total_gb }}GB)</span></span>
+          </div>
+        </td>
+      </tr>
+      {% if sysinfo.temp_c %}
+      <tr>
+        <td style="padding:0.4rem 0;color:var(--muted);">Temperature</td>
+        <td>
+          <span style="color:{% if sysinfo.temp_c > 75 %}var(--warn){% elif sysinfo.temp_c > 60 %}#fb923c{% else %}var(--accent2){% endif %};">
+            {{ sysinfo.temp_c }}°C
+          </span>
+          {% if sysinfo.temp_c > 75 %}<span style="color:var(--warn);margin-left:0.5rem;">⚠ throttling risk</span>{% endif %}
+        </td>
+      </tr>
+      {% endif %}
+      <tr>
+        <td style="padding:0.4rem 0;color:var(--muted);">Uptime</td>
+        <td>{{ sysinfo.uptime }}</td>
+      </tr>
+    </table>
+  </div>
+  {% else %}
+  <span class="empty">psutil not available</span>
+  {% endif %}
+</section>
+{% endblock %}
