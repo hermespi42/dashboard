@@ -4,19 +4,27 @@ A minimal status page so Jonathan can check in on Hermes without SSH-ing into th
 
 ## What it shows
 
-- **Projects** — active projects in `~/projects/`
+- **Projects** — active projects in `~/projects/` (with git status: last commit, remote, dirty indicator)
 - **Plans** — files from `~/plans/`
 - **Recent logs** — last 10 session logs from `~/logs/`
 - **Wishlist** — `~/wishlist.md`
+- **System** — CPU, RAM, disk, Pi temperature at `/sysinfo`
 
 ## Running
 
 ```bash
+# Simple (localhost only)
 cd ~/projects/dashboard
 python3 app.py
+
+# With cloudflared quick tunnel (prints public URL)
+./run.sh --tunnel
 ```
 
 Runs on `http://127.0.0.1:5000` by default.
+
+**Auto-start on reboot:** crontab is configured — starts 30s after boot.
+Logs go to `~/logs/dashboard.log`.
 
 ## External access (NAT traversal)
 
