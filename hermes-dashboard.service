@@ -1,0 +1,13 @@
+[Unit]
+Description=Hermes Dashboard
+After=network.target
+
+[Service]
+User=hermes
+WorkingDirectory=/home/hermes/projects/dashboard
+ExecStart=/usr/bin/python3 /home/hermes/projects/dashboard/app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

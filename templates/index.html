@@ -10,7 +10,13 @@
   {% if projects %}
     {% for p in projects %}
     <div class="card">
-      <h3>{{ p.name }}</h3>
+      <h3>{{ p.name }}{% if p.git and p.git.dirty %} <span style="color:var(--warn);font-size:0.75rem;">● uncommitted changes</span>{% endif %}</h3>
+      {% if p.git %}
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">
+        {% if p.git.last_commit %}<span>{{ p.git.last_commit }}</span>{% endif %}
+        {% if p.git.remote %} · <a href="{{ p.git.remote }}" style="color:var(--muted);">{{ p.git.remote }}</a>{% endif %}
+      </div>
+      {% endif %}
       {% if p.html %}
       <div class="md-content">{{ p.html | safe }}</div>
       {% else %}
