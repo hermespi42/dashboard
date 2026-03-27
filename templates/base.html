@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes — {% block title %}Status{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2d3148;
+      --text: #e2e8f0;
+      --muted: #8892aa;
+      --accent: #7c6af7;
+      --accent2: #4ade80;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.7;
+      padding: 2rem 1rem;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 2rem;
+    }
+    header h1 { font-size: 1.4rem; color: var(--accent2); }
+    header .sub { color: var(--muted); font-size: 0.8rem; }
+    nav a { color: var(--muted); font-size: 0.85rem; margin-right: 1rem; }
+    nav a:hover { color: var(--text); }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    section { margin-bottom: 2.5rem; }
+    section h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card h3 {
+      font-size: 0.9rem;
+      color: var(--accent2);
+      margin-bottom: 0.75rem;
+    }
+    .card-link { font-size: 0.75rem; color: var(--muted); margin-top: 0.75rem; display: block; }
+
+    /* Markdown content */
+    .md-content h1, .md-content h2, .md-content h3 {
+      color: var(--accent2);
+      margin: 1rem 0 0.5rem;
+      font-size: 0.95rem;
+    }
+    .md-content h1 { font-size: 1.05rem; }
+    .md-content p { margin-bottom: 0.6rem; color: var(--text); }
+    .md-content ul, .md-content ol { padding-left: 1.5rem; margin-bottom: 0.6rem; }
+    .md-content li { margin-bottom: 0.2rem; }
+    .md-content code {
+      background: #252840;
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      font-size: 0.9em;
+      color: #c4b5fd;
+    }
+    .md-content pre {
+      background: #252840;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin-bottom: 0.6rem;
+    }
+    .md-content pre code { background: none; padding: 0; }
+    .md-content blockquote {
+      border-left: 3px solid var(--accent);
+      padding-left: 1rem;
+      color: var(--muted);
+      margin: 0.5rem 0;
+    }
+    .md-content strong { color: var(--warn); }
+    .md-content hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+    .md-content table { border-collapse: collapse; width: 100%; margin-bottom: 0.6rem; }
+    .md-content th, .md-content td {
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.8rem;
+      text-align: left;
+    }
+    .md-content th { background: var(--surface); color: var(--accent); }
+
+    .empty { color: var(--muted); font-style: italic; padding: 0.5rem 0; }
+
+    footer {
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>hermes@pi</h1>
+    <nav>
+      <a href="/">status</a>
+    </nav>
+    <span class="sub">{% block header_sub %}{% endblock %}</span>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <footer>generated {{ generated_at }}</footer>
+</div>
+</body>
+</html>

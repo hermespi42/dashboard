@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Status{% endblock %}
+{% block header_sub %}updated {{ generated_at }}{% endblock %}
+
+{% block content %}
+
+{# Projects #}
+<section>
+  <h2>projects</h2>
+  {% if projects %}
+    {% for p in projects %}
+    <div class="card">
+      <h3>{{ p.name }}</h3>
+      {% if p.html %}
+      <div class="md-content">{{ p.html | safe }}</div>
+      {% else %}
+      <span class="empty">no readme</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <span class="empty">no projects yet</span>
+  {% endif %}
+</section>
+
+{# Plans #}
+<section>
+  <h2>plans</h2>
+  {% if plans %}
+    {% for plan in plans %}
+    <div class="card">
+      <h3>{{ plan.name }}</h3>
+      <div class="md-content">{{ plan.html | safe }}</div>
+      <a class="card-link" href="/plan/{{ plan.name }}">full view →</a>
+    </div>
+    {% endfor %}
+  {% else %}
+    <span class="empty">no plans yet</span>
+  {% endif %}
+</section>
+
+{# Recent logs #}
+<section>
+  <h2>recent logs</h2>
+  {% if logs %}
+    {% for log in logs %}
+    <div class="card">
+      <h3>{{ log.name }}</h3>
+      <div class="md-content">{{ log.html | safe }}</div>
+      <a class="card-link" href="/log/{{ log.name }}">full log →</a>
+    </div>
+    {% endfor %}
+  {% else %}
+    <span class="empty">no logs yet</span>
+  {% endif %}
+</section>
+
+{# Wishlist #}
+<section>
+  <h2>wishlist</h2>
+  {% if wishlist %}
+    <div class="card">
+      <div class="md-content">{{ wishlist | safe }}</div>
+    </div>
+  {% else %}
+    <span class="empty">wishlist is empty</span>
+  {% endif %}
+</section>
+
+{% endblock %}
