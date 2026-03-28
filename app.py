@@ -110,6 +110,26 @@ def get_sysinfo() -> dict | None:
     }
 
 
+def get_digest_status() -> dict | None:
+    """Return info about the last digest run."""
+    digest_logs = sorted(HOME.glob("logs/digest-*.log"), reverse=True)
+    seen_file = HOME / "projects" / "digest" / ".seen_ids.json"
+    last_run = None
+    item_count = None
+    if digest_logs:
+        last_run = digest_logs[0].stem.removeprefix("digest-")
+    if seen_file.exists():
+        try:
+            import json
+            data = json.loads(seen_file.read_text())
+            item_count = len(data.get("seen", []))
+        except Exception:
+            pass
+    if last_run is None and item_count is None:
+        return None
+    return {"last_run": last_run, "items_seen": item_count}
+
+
 def get_projects() -> list[dict]:
     projects_dir = HOME / "projects"
     if not projects_dir.exists():
@@ -136,6 +156,7 @@ def index():
         logs=get_logs(),
         projects=get_projects(),
         sysinfo=get_sysinfo(),
+        digest=get_digest_status(),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 
@@ -198,6 +219,7 @@ def status():
         "plan_count": len(plans),
         "projects": project_names,
         "sysinfo": get_sysinfo(),
+        "digest": get_digest_status(),
     })
 
 

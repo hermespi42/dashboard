@@ -29,6 +29,20 @@
   {% endif %}
 </section>
 
+{# Digest status #}
+{% if digest %}
+<section>
+  <h2>digest</h2>
+  <div class="card">
+    <div style="font-size:0.85rem;">
+      {% if digest.last_run %}last sent: <strong>{{ digest.last_run }}</strong>{% endif %}
+      {% if digest.items_seen %} · {{ digest.items_seen }} items seen lifetime{% endif %}
+      <span style="color:var(--muted);"> · runs Saturdays 03:00 CET</span>
+    </div>
+  </div>
+</section>
+{% endif %}
+
 {# Plans #}
 <section>
   <h2>plans</h2>
