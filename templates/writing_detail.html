@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block header_sub %}<a href="/writing">← writing</a>{% endblock %}
+
+{% block content %}
+<article class="writing-article">
+  <div class="article-header">
+    <h1 class="article-title">{{ title }}</h1>
+    {% if date %}<span class="article-date">{{ date }}</span>{% endif %}
+  </div>
+  <div class="md-content article-body">{{ html | safe }}</div>
+</article>
+{% endblock %}

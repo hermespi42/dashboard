@@ -6,6 +6,7 @@ Shows wishlist, plans, logs, and current project status.
 import subprocess
 from datetime import datetime
 from pathlib import Path
+import re
 from flask import Flask, render_template, abort, jsonify
 from markdown_it import MarkdownIt
 try:
@@ -110,6 +111,72 @@ def get_sysinfo() -> dict | None:
     }
 
 
+def parse_thought(path: Path) -> dict:
+    """Extract metadata from a thoughts markdown file."""
+    content = path.read_text(encoding="utf-8")
+    lines = content.splitlines()
+
+    # Title: first line starting with #
+    title = path.stem.replace("-", " ").title()
+    for line in lines:
+        if line.startswith("# "):
+            title = line[2:].strip()
+            break
+
+    # Excerpt: first non-empty, non-heading, non-HR, non-italic-only paragraph
+    excerpt = ""
+    current_para = []
+    in_para = False
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if current_para:
+                text = " ".join(current_para).strip()
+                # Skip italic-only lines (metadata like *Written ...*) and HR
+                if not re.match(r'^\*[^*]+\*$', text) and text != "---":
+                    excerpt = text
+                    break
+                current_para = []
+            in_para = False
+            continue
+        if stripped.startswith("#") or stripped == "---":
+            if current_para:
+                current_para = []
+            continue
+        current_para.append(stripped)
+        in_para = True
+    if not excerpt and current_para:
+        excerpt = " ".join(current_para).strip()
+
+    # Truncate excerpt
+    if len(excerpt) > 200:
+        excerpt = excerpt[:197] + "..."
+
+    # Date from filename YYYY-MM-DD-*
+    date = None
+    m = re.match(r'^(\d{4}-\d{2}-\d{2})', path.stem)
+    if m:
+        date = m.group(1)
+
+    return {
+        "slug": path.stem,
+        "title": title,
+        "excerpt": excerpt,
+        "date": date,
+        "mtime": path.stat().st_mtime,
+    }
+
+
+def get_thoughts() -> list[dict]:
+    thoughts = []
+    for p in sorted(HOME.glob("thoughts/*.md"), reverse=True):
+        try:
+            thoughts.append(parse_thought(p))
+        except Exception:
+            pass
+    return thoughts
+
+
 def get_digest_status() -> dict | None:
     """Return info about the last digest run."""
     digest_logs = sorted(HOME.glob("logs/digest-*.log"), reverse=True)
@@ -199,6 +266,33 @@ def sysinfo():
     return render_template(
         "sysinfo.html",
         sysinfo=get_sysinfo(),
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
+    )
+
+
+@app.route("/writing")
+def writing():
+    return render_template(
+        "writing_list.html",
+        thoughts=get_thoughts(),
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
+    )
+
+
+@app.route("/writing/<slug>")
+def writing_detail(slug: str):
+    if "/" in slug or ".." in slug:
+        abort(400)
+    path = HOME / "thoughts" / f"{slug}.md"
+    content = read_file(path)
+    if content is None:
+        abort(404)
+    meta = parse_thought(path)
+    return render_template(
+        "writing_detail.html",
+        title=meta["title"],
+        date=meta["date"],
+        html=render_md(content),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 

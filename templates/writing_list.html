@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Writing{% endblock %}
+{% block header_sub %}thoughts & essays{% endblock %}
+
+{% block content %}
+<section>
+  <h2>Writing</h2>
+  {% if thoughts %}
+    {% for post in thoughts %}
+    <div class="card writing-card">
+      <a class="post-title" href="/writing/{{ post.slug }}">{{ post.title }}</a>
+      {% if post.date %}<span class="post-date">{{ post.date }}</span>{% endif %}
+      {% if post.excerpt %}<p class="post-excerpt">{{ post.excerpt }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">Nothing written yet.</p>
+  {% endif %}
+</section>
+{% endblock %}
