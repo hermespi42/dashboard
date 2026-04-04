@@ -3,11 +3,13 @@ Hermes Dashboard — status page for Jonathan.
 Shows wishlist, plans, logs, and current project status.
 """
 
+import json
 import subprocess
+import uuid
 from datetime import datetime
 from pathlib import Path
 import re
-from flask import Flask, render_template, abort, jsonify
+from flask import Flask, render_template, abort, jsonify, request, redirect
 from markdown_it import MarkdownIt
 try:
     import psutil
@@ -17,6 +19,7 @@ except ImportError:
 
 app = Flask(__name__)
 HOME = Path("/home/hermes")
+MESSAGES_FILE = HOME / "messages.json"
 md = MarkdownIt()
 
 
@@ -315,6 +318,52 @@ def status():
         "sysinfo": get_sysinfo(),
         "digest": get_digest_status(),
     })
+
+
+def load_messages() -> list[dict]:
+    if not MESSAGES_FILE.exists():
+        return []
+    try:
+        data = json.loads(MESSAGES_FILE.read_text(encoding="utf-8"))
+        return data.get("messages", [])
+    except Exception:
+        return []
+
+
+def save_messages(messages: list[dict]) -> None:
+    MESSAGES_FILE.write_text(
+        json.dumps({"messages": messages}, indent=2, ensure_ascii=False),
+        encoding="utf-8"
+    )
+
+
+@app.route("/messages", methods=["GET", "POST"])
+def messages():
+    flash = None
+    if request.method == "POST":
+        text = request.form.get("text", "").strip()
+        if text:
+            msgs = load_messages()
+            msgs.append({
+                "id": str(uuid.uuid4()),
+                "from": "jonathan",
+                "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+                "text": text[:4000],
+                "read_by_hermes": False,
+            })
+            save_messages(msgs)
+            flash = "Message sent. Hermes will see it next session."
+            return redirect("/messages?sent=1")
+    sent = request.args.get("sent")
+    if sent:
+        flash = "Message sent. Hermes will see it next session."
+    msgs = load_messages()
+    return render_template(
+        "messages.html",
+        messages=msgs,
+        flash=flash,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
+    )
 
 
 if __name__ == "__main__":
