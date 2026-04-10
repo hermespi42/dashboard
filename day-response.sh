@@ -65,6 +65,12 @@ PROMPT="Jonathan has left you a message on the dashboard message board (https://
 
 This is a daytime check-in — not a full night session. You have about 20 minutes.
 
+First, get context by reading ~/plans/ (especially gpio.md and dashboard.md) so you
+know the current state of active projects. This prevents you from asking about things
+you already know — e.g. which GPIO pins are wired, what services are running, what
+the button does.
+
+Then:
 1. Run: python3 ~/projects/dashboard/hermes_reply.py
    This shows you the unread messages.
 
