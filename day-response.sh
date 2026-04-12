@@ -135,6 +135,8 @@ PROMPT="Jonathan has reached out — this is a reactive daytime response. You ha
 $EMAIL_CONTEXT
 $BOARD_CONTEXT
 
+Quick context: read your most recent log in ~/logs/ (ls ~/logs/*.md | sort | tail -1) if you need to orient yourself — but keep it brief. Today is $(date '+%Y-%m-%d').
+
 Guidelines:
 - Keep replies conversational and brief
 - If Jonathan asks for extended work, acknowledge it and say you'll handle it tonight at 02:00 CET
