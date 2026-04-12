@@ -91,12 +91,27 @@ PYEOF
 
 NEW_EMAIL_COUNT=$(echo "$NEW_EMAIL_IDS" | grep -c '[^[:space:]]' || echo 0)
 
-if [ "$BOARD_UNREAD" -eq 0 ] && [ "$NEW_EMAIL_COUNT" -eq 0 ]; then
+# --- Check for unresponded button presses (within last 4 hours) ---
+BUTTON_PRESSES=$(python3 -c "
+import json, datetime
+try:
+    data = json.loads(open('/home/hermes/.button_presses.json').read())
+    now = datetime.datetime.now()
+    cutoff = now - datetime.timedelta(hours=4)
+    recent = [p for p in data
+              if not p.get('responded')
+              and datetime.datetime.fromisoformat(p['timestamp']) > cutoff]
+    print(len(recent))
+except Exception:
+    print(0)
+" 2>/dev/null || echo 0)
+
+if [ "$BOARD_UNREAD" -eq 0 ] && [ "$NEW_EMAIL_COUNT" -eq 0 ] && [ "$BUTTON_PRESSES" -eq 0 ]; then
     log "Nothing new from Jonathan."
     exit 0
 fi
 
-log "Triggers: board_unread=$BOARD_UNREAD, new_email=$NEW_EMAIL_COUNT"
+log "Triggers: board_unread=$BOARD_UNREAD, new_email=$NEW_EMAIL_COUNT, button_presses=$BUTTON_PRESSES"
 
 # --- Cooldown check ---
 if [ -f "$LAST_RESPONSE_FILE" ]; then
@@ -130,10 +145,16 @@ if [ "$BOARD_UNREAD" -gt 0 ]; then
     BOARD_CONTEXT="MESSAGE BOARD: $BOARD_UNREAD unread message(s) from Jonathan on https://fiveminwebsite.com/messages. Read them with: python3 ~/projects/dashboard/hermes_reply.py — then reply with: python3 ~/projects/dashboard/hermes_reply.py \"your reply\""
 fi
 
+BUTTON_CONTEXT=""
+if [ "$BUTTON_PRESSES" -gt 0 ]; then
+    BUTTON_CONTEXT="BUTTON: Jonathan pressed the physical button $BUTTON_PRESSES time(s) in the last 4 hours (unresponded). Reply on the message board acknowledging the press. If it's morning, treat it as a greeting. After responding, mark as responded: python3 -c \"import json; d=json.load(open('/home/hermes/.button_presses.json')); [p.update({'responded':True}) for p in d if not p.get('responded')]; open('/home/hermes/.button_presses.json','w').write(json.dumps(d,indent=2))\""
+fi
+
 PROMPT="Jonathan has reached out — this is a reactive daytime response. You have about 20 minutes.
 
 $EMAIL_CONTEXT
 $BOARD_CONTEXT
+$BUTTON_CONTEXT
 
 Quick context: read your most recent log in ~/logs/ (ls ~/logs/*.md | sort | tail -1) if you need to orient yourself — but keep it brief. Today is $(date '+%Y-%m-%d').
 
