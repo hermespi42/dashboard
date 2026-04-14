@@ -366,5 +366,27 @@ def messages():
     )
 
 
+SENSOR_DATA_FILE = HOME / "sensor_data.json"
+
+
+def load_sensor_data() -> dict | None:
+    if not SENSOR_DATA_FILE.exists():
+        return None
+    try:
+        return json.loads(SENSOR_DATA_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+@app.route("/sensors")
+def sensors():
+    data = load_sensor_data()
+    return render_template(
+        "sensors.html",
+        sensor_data=data,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
+    )
+
+
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=False)

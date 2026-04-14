@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Sensors{% endblock %}
+{% block header_sub %}<a href="/">← back</a>{% endblock %}
+
+{% block content %}
+<section>
+  <h2>analog sensors — ADS1115</h2>
+
+  {% if sensor_data is none %}
+  <div class="card">
+    <span class="empty">No sensor data yet. Start hermes-sensor-collector.service once the ADS1115 is wired.</span>
+  </div>
+
+  {% elif not sensor_data.connected %}
+  <div class="card">
+    <span style="color:var(--warn);">● not connected</span>
+    <span style="color:var(--muted);margin-left:1rem;font-size:0.8em;">{{ sensor_data.timestamp }}</span>
+    {% if sensor_data.error %}
+    <p style="color:var(--muted);font-size:0.85em;margin-top:0.5rem;">{{ sensor_data.error }}</p>
+    {% endif %}
+    <p style="color:var(--muted);font-size:0.85em;margin-top:0.5rem;">
+      Chip expected at I2C address 0x48. Check wiring: VDD→pin 1, GND→pin 9, SCL→pin 5, SDA→pin 3.
+    </p>
+  </div>
+
+  {% else %}
+  <p style="color:var(--muted);font-size:0.8em;margin-bottom:1.5rem;">
+    Last updated: {{ sensor_data.timestamp }} · updated every {{ sensor_data.interval_s }}s
+    <meta http-equiv="refresh" content="{{ sensor_data.interval_s }}">
+  </p>
+
+  {% set r = sensor_data.readings %}
+
+  <div class="card">
+    <h3>A0 — photoresistor (light)</h3>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);width:40%;">Voltage</td>
+        <td>{{ r.A0_photo.voltage }} V</td>
+      </tr>
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);">Resistance</td>
+        <td>{{ r.A0_photo.resistance_ohm }} Ω</td>
+      </tr>
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);">Light (approx)</td>
+        <td>
+          <span style="color:var(--accent2);">{{ r.A0_photo.lux_approx }} lux</span>
+          {% set lux = r.A0_photo.lux_approx %}
+          <span style="color:var(--muted);margin-left:0.5rem;font-size:0.8em;">
+            {% if lux > 500 %}bright light
+            {% elif lux > 100 %}well lit
+            {% elif lux > 10 %}dim
+            {% else %}dark{% endif %}
+          </span>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>A1 — thermistor (temperature)</h3>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);width:40%;">Voltage</td>
+        <td>{{ r.A1_therm.voltage }} V</td>
+      </tr>
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);">Resistance</td>
+        <td>{{ r.A1_therm.resistance_ohm }} Ω</td>
+      </tr>
+      {% if r.A1_therm.temp_celsius is defined %}
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);">Temperature</td>
+        <td>
+          <span style="color:{% if r.A1_therm.temp_celsius > 35 %}var(--warn){% else %}var(--accent2){% endif %};">
+            {{ r.A1_therm.temp_celsius }}°C
+          </span>
+        </td>
+      </tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>A2/A3 — potentiometers</h3>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);width:40%;">Pot 1 (A2)</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;max-width:200px;">
+              <div style="width:{{ r.A2_pot1.percent }}%;height:100%;background:var(--accent);border-radius:3px;"></div>
+            </div>
+            <span>{{ r.A2_pot1.percent }}%</span>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0.3rem 0;color:var(--muted);">Pot 2 (A3)</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;max-width:200px;">
+              <div style="width:{{ r.A3_pot2.percent }}%;height:100%;background:var(--accent);border-radius:3px;"></div>
+            </div>
+            <span>{{ r.A3_pot2.percent }}%</span>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+  {% endif %}
+
+</section>
+{% endblock %}
