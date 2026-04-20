@@ -112,4 +112,121 @@
   {% endif %}
 
 </section>
+
+<section>
+  <h2>history — last 2 hours</h2>
+  <div class="card" id="chart-card">
+    <div style="display:flex;gap:1.5rem;font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">
+      <span><span style="color:#4ade80;">&#9632;</span> light (lux)</span>
+      <span><span style="color:#f59e0b;">&#9632;</span> temperature (°C)</span>
+      <span id="chart-status" style="margin-left:auto;"></span>
+    </div>
+    <svg id="sensor-chart" width="100%" height="160"
+         style="display:block;background:var(--bg);border-radius:4px;border:1px solid var(--border);"
+         viewBox="0 0 800 160" preserveAspectRatio="none">
+      <text x="400" y="85" text-anchor="middle" font-size="11"
+            font-family="monospace" fill="#8892aa">loading…</text>
+    </svg>
+    <div style="display:flex;justify-content:space-between;font-size:0.7em;color:var(--muted);margin-top:0.3rem;">
+      <span id="chart-t-start"></span>
+      <span id="chart-t-end"></span>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  const W = 800, H = 160, PAD = { top: 10, right: 10, bottom: 10, left: 10 };
+  const IW = W - PAD.left - PAD.right;
+  const IH = H - PAD.top - PAD.bottom;
+
+  function polyline(points, color, opacity) {
+    if (points.length < 2) return '';
+    const d = points.map(([x, y]) => x + ',' + y).join(' ');
+    return `<polyline points="${d}" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="${opacity}" stroke-linejoin="round"/>`;
+  }
+
+  function scaledPoints(entries, valueFn, minV, maxV) {
+    const range = maxV - minV || 1;
+    const n = entries.length;
+    return entries
+      .map((e, i) => {
+        const v = valueFn(e);
+        if (v == null) return null;
+        const x = PAD.left + (i / Math.max(n - 1, 1)) * IW;
+        const y = PAD.top + IH - ((v - minV) / range) * IH;
+        return [Math.round(x * 10) / 10, Math.round(y * 10) / 10];
+      })
+      .filter(p => p !== null);
+  }
+
+  function hhmm(isoStr) {
+    try {
+      const d = new Date(isoStr.replace('T', ' ') + '+00:00');
+      // sensor timestamps are local (CET/CEST), treat as UTC offset for display
+      return isoStr.slice(11, 16);
+    } catch { return ''; }
+  }
+
+  function render(entries) {
+    const svg = document.getElementById('sensor-chart');
+    const status = document.getElementById('chart-status');
+
+    if (!entries || entries.length === 0) {
+      svg.innerHTML = '<text x="400" y="85" text-anchor="middle" font-size="11" font-family="monospace" fill="#8892aa">no data in range</text>';
+      return;
+    }
+
+    // Lux: range 0–1000 (clip for chart; when unwired all ~160 lux floating)
+    const luxVals = entries.map(e => e.lux).filter(v => v != null);
+    const tempVals = entries.map(e => e.temp).filter(v => v != null);
+
+    const luxMin = 0;
+    const luxMax = Math.max(1000, ...luxVals) * 1.05;
+    const tempMin = Math.max(0, Math.min(...tempVals, 15) - 2);
+    const tempMax = Math.max(40, ...tempVals) + 2;
+
+    // Detect if sensors are connected (significant variation in lux)
+    const luxSpread = luxVals.length > 1
+      ? Math.max(...luxVals) - Math.min(...luxVals)
+      : 0;
+    const sensorsWired = luxSpread > 20;
+
+    const luxPts = scaledPoints(entries, e => e.lux, luxMin, luxMax);
+    const tempPts = scaledPoints(entries, e => e.temp, tempMin, tempMax);
+
+    let inner = '';
+
+    // Light grid lines (4 levels)
+    for (let i = 0; i <= 3; i++) {
+      const y = Math.round(PAD.top + (i / 3) * IH);
+      inner += `<line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}" stroke="#2d3148" stroke-width="0.5"/>`;
+    }
+
+    inner += polyline(luxPts, '#4ade80', 0.85);
+    inner += polyline(tempPts, '#f59e0b', 0.75);
+
+    if (!sensorsWired && luxVals.length > 0) {
+      inner += `<text x="${W/2}" y="${H - 18}" text-anchor="middle" font-size="10" font-family="monospace" fill="#8892aa" fill-opacity="0.7">sensors not yet wired — floating at ~${luxVals[luxVals.length-1].toFixed(0)} lux</text>`;
+    }
+
+    svg.innerHTML = inner;
+
+    status.textContent = entries.length + ' readings';
+
+    if (entries.length >= 2) {
+      document.getElementById('chart-t-start').textContent = hhmm(entries[0].t);
+      document.getElementById('chart-t-end').textContent = hhmm(entries[entries.length - 1].t);
+    }
+  }
+
+  fetch('/sensors/history?hours=2&points=240')
+    .then(r => r.json())
+    .then(data => render(data.entries))
+    .catch(() => {
+      document.getElementById('chart-status').textContent = 'fetch error';
+    });
+})();
+</script>
+
 {% endblock %}

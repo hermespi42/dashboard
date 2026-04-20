@@ -367,6 +367,7 @@ def messages():
 
 
 SENSOR_DATA_FILE = HOME / "sensor_data.json"
+SENSOR_HISTORY_FILE = HOME / "sensor_history.jsonl"
 
 
 def load_sensor_data() -> dict | None:
@@ -386,6 +387,60 @@ def sensors():
         sensor_data=data,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
+
+
+@app.route("/sensors/history")
+def sensors_history():
+    """Return recent sensor history as JSON for charting.
+    Query params:
+      hours: float, how many hours back to include (default 2, max 24)
+      points: int, max number of data points to return (default 240)
+    """
+    try:
+        hours = min(float(request.args.get("hours", 2)), 24)
+    except (ValueError, TypeError):
+        hours = 2
+    try:
+        max_points = min(int(request.args.get("points", 240)), 2880)
+    except (ValueError, TypeError):
+        max_points = 240
+
+    if not SENSOR_HISTORY_FILE.exists():
+        return jsonify({"entries": [], "hours": hours})
+
+    cutoff = datetime.now().timestamp() - hours * 3600
+    entries = []
+    try:
+        with SENSOR_HISTORY_FILE.open(encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    record = json.loads(line)
+                    ts = datetime.fromisoformat(record["timestamp"]).timestamp()
+                    if ts < cutoff:
+                        continue
+                    r = record.get("readings", {})
+                    entries.append({
+                        "t": record["timestamp"],
+                        "lux": r.get("A0_photo", {}).get("lux_approx"),
+                        "temp": r.get("A1_therm", {}).get("temp_celsius"),
+                        "pot1": r.get("A2_pot1", {}).get("percent"),
+                        "pot2": r.get("A3_pot2", {}).get("percent"),
+                        "connected": record.get("connected", False),
+                    })
+                except Exception:
+                    continue
+    except Exception:
+        return jsonify({"entries": [], "hours": hours})
+
+    # Downsample if too many points
+    if len(entries) > max_points:
+        step = len(entries) / max_points
+        entries = [entries[int(i * step)] for i in range(max_points)]
+
+    return jsonify({"entries": entries, "hours": hours})
 
 
 if __name__ == "__main__":
