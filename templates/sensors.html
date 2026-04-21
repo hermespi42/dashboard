@@ -3,6 +3,20 @@
 {% block header_sub %}<a href="/">← back</a>{% endblock %}
 
 {% block content %}
+<style>
+.win-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.win-btn:hover { color: var(--text); border-color: var(--muted); }
+.win-btn.win-active { color: var(--accent); border-color: var(--accent); }
+</style>
 <section>
   <h2>analog sensors — ADS1115</h2>
 
@@ -114,12 +128,17 @@
 </section>
 
 <section>
-  <h2>history — last 2 hours</h2>
+  <h2>history — last <span id="window-label">2 hours</span></h2>
   <div class="card" id="chart-card">
-    <div style="display:flex;gap:1.5rem;font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">
+    <div style="display:flex;gap:1.5rem;font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;flex-wrap:wrap;align-items:center;">
       <span><span style="color:#4ade80;">&#9632;</span> light (lux)</span>
       <span><span style="color:#f59e0b;">&#9632;</span> temperature (°C)</span>
-      <span id="chart-status" style="margin-left:auto;"></span>
+      <span style="margin-left:auto;display:flex;gap:0.4rem;">
+        <button onclick="setWindow(2)" id="btn-2h" class="win-btn win-active">2h</button>
+        <button onclick="setWindow(6)" id="btn-6h" class="win-btn">6h</button>
+        <button onclick="setWindow(24)" id="btn-24h" class="win-btn">24h</button>
+        <span id="chart-status" style="margin-left:0.5rem;"></span>
+      </span>
     </div>
     <svg id="sensor-chart" width="100%" height="160"
          style="display:block;background:var(--bg);border-radius:4px;border:1px solid var(--border);"
@@ -220,12 +239,30 @@
     }
   }
 
-  fetch('/sensors/history?hours=2&points=240')
-    .then(r => r.json())
-    .then(data => render(data.entries))
-    .catch(() => {
-      document.getElementById('chart-status').textContent = 'fetch error';
+  let currentHours = 2;
+
+  function setWindow(hours) {
+    currentHours = hours;
+    const labels = {2: '2 hours', 6: '6 hours', 24: '24 hours'};
+    document.getElementById('window-label').textContent = labels[hours];
+    ['2','6','24'].forEach(h => {
+      const btn = document.getElementById('btn-' + h + 'h');
+      btn.classList.toggle('win-active', parseInt(h) === hours);
     });
+    loadChart();
+  }
+
+  function loadChart() {
+    const pts = currentHours <= 2 ? 240 : currentHours <= 6 ? 360 : 480;
+    fetch('/sensors/history?hours=' + currentHours + '&points=' + pts)
+      .then(r => r.json())
+      .then(data => render(data.entries))
+      .catch(() => {
+        document.getElementById('chart-status').textContent = 'fetch error';
+      });
+  }
+
+  loadChart();
 })();
 </script>
 
