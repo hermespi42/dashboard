@@ -5,6 +5,7 @@
 {% block content %}
 <article class="writing-article">
   <div class="article-header">
+    {% if series %}<div class="article-series"><a href="/writing">{{ series }}</a> — {{ series_order }}</div>{% endif %}
     <h1 class="article-title">{{ title }}</h1>
     {% if date %}<span class="article-date">{{ date }}</span>{% endif %}
   </div>

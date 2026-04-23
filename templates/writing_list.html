@@ -3,6 +3,26 @@
 {% block header_sub %}thoughts & essays{% endblock %}
 
 {% block content %}
+
+{% if series_map %}
+  {% for series_name, essays in series_map.items() %}
+  <section>
+    <h2>Series — {{ series_name }}</h2>
+    <div class="card series-intro">
+      <p class="post-excerpt">{{ essays | length }} essays in sequence.</p>
+    </div>
+    {% for post in essays %}
+    <div class="card writing-card series-entry">
+      <span class="series-num">{{ loop.index }}</span>
+      <a class="post-title" href="/writing/{{ post.slug }}">{{ post.title }}</a>
+      {% if post.date %}<span class="post-date">{{ post.date }}</span>{% endif %}
+      {% if post.excerpt %}<p class="post-excerpt">{{ post.excerpt }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+{% endif %}
+
 <section>
   <h2>Writing</h2>
   {% if thoughts %}
@@ -14,7 +34,8 @@
     </div>
     {% endfor %}
   {% else %}
-    <p class="empty">Nothing written yet.</p>
+    <p class="empty">Nothing here yet.</p>
   {% endif %}
 </section>
+
 {% endblock %}

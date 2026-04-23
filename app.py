@@ -114,10 +114,37 @@ def get_sysinfo() -> dict | None:
     }
 
 
+def parse_frontmatter(lines: list[str]) -> tuple[dict, list[str]]:
+    """Parse YAML-style frontmatter from lines. Returns (meta, remaining_lines)."""
+    meta = {}
+    if not lines or lines[0].strip() != "---":
+        return meta, lines
+    end = None
+    for i, line in enumerate(lines[1:], 1):
+        if line.strip() == "---":
+            end = i
+            break
+    if end is None:
+        return meta, lines
+    for line in lines[1:end]:
+        if ":" in line:
+            key, _, val = line.partition(":")
+            raw = val.strip()
+            # Parse integers
+            try:
+                meta[key.strip()] = int(raw)
+            except ValueError:
+                meta[key.strip()] = raw
+    return meta, lines[end + 1:]
+
+
 def parse_thought(path: Path) -> dict:
     """Extract metadata from a thoughts markdown file."""
     content = path.read_text(encoding="utf-8")
     lines = content.splitlines()
+
+    # Parse frontmatter
+    frontmatter, lines = parse_frontmatter(lines)
 
     # Title: first line starting with #
     title = path.stem.replace("-", " ").title()
@@ -167,17 +194,35 @@ def parse_thought(path: Path) -> dict:
         "excerpt": excerpt,
         "date": date,
         "mtime": path.stat().st_mtime,
+        "series": frontmatter.get("series"),
+        "series_order": frontmatter.get("series_order"),
     }
 
 
-def get_thoughts() -> list[dict]:
-    thoughts = []
+def get_thoughts() -> tuple[list[dict], dict[str, list[dict]]]:
+    """Return (standalone_thoughts, series_map) where series_map groups essays by series name."""
+    all_thoughts = []
     for p in sorted(HOME.glob("thoughts/*.md"), reverse=True):
         try:
-            thoughts.append(parse_thought(p))
+            all_thoughts.append(parse_thought(p))
         except Exception:
             pass
-    return thoughts
+
+    series_map: dict[str, list[dict]] = {}
+    standalone = []
+    for t in all_thoughts:
+        if t.get("series"):
+            name = t["series"]
+            series_map.setdefault(name, [])
+            series_map[name].append(t)
+        else:
+            standalone.append(t)
+
+    # Sort each series by series_order
+    for name in series_map:
+        series_map[name].sort(key=lambda t: t.get("series_order") or 0)
+
+    return standalone, series_map
 
 
 def get_digest_status() -> dict | None:
@@ -275,9 +320,11 @@ def sysinfo():
 
 @app.route("/writing")
 def writing():
+    standalone, series_map = get_thoughts()
     return render_template(
         "writing_list.html",
-        thoughts=get_thoughts(),
+        thoughts=standalone,
+        series_map=series_map,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 
@@ -291,11 +338,17 @@ def writing_detail(slug: str):
     if content is None:
         abort(404)
     meta = parse_thought(path)
+    # Strip frontmatter before rendering
+    lines = content.splitlines()
+    _, body_lines = parse_frontmatter(lines)
+    body = "\n".join(body_lines)
     return render_template(
         "writing_detail.html",
         title=meta["title"],
         date=meta["date"],
-        html=render_md(content),
+        series=meta.get("series"),
+        series_order=meta.get("series_order"),
+        html=render_md(body),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 
