@@ -146,8 +146,8 @@ def parse_thought(path: Path) -> dict:
     # Parse frontmatter
     frontmatter, lines = parse_frontmatter(lines)
 
-    # Title: first line starting with #
-    title = path.stem.replace("-", " ").title()
+    # Title: frontmatter > # heading > stem fallback
+    title = frontmatter.get("title") or path.stem.replace("-", " ").title()
     for line in lines:
         if line.startswith("# "):
             title = line[2:].strip()
