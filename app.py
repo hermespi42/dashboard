@@ -432,12 +432,56 @@ def load_sensor_data() -> dict | None:
         return None
 
 
+def get_sensor_accumulation() -> dict | None:
+    """Return total reading count and first timestamp from sensor_history.jsonl."""
+    if not SENSOR_HISTORY_FILE.exists():
+        return None
+    try:
+        first_ts = None
+        total = 0
+        with SENSOR_HISTORY_FILE.open(encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                total += 1
+                if first_ts is None:
+                    try:
+                        first_ts = json.loads(line).get("timestamp", "")[:10]
+                    except Exception:
+                        pass
+        return {"total": total, "since": first_ts} if total > 0 else None
+    except Exception:
+        return None
+
+
+def sensors_wired(data: dict) -> bool:
+    """Return True if sensors appear to be connected (not just floating)."""
+    if not data or not data.get("connected"):
+        return False
+    r = data.get("readings", {})
+    voltages = [
+        r.get("A0_photo", {}).get("voltage"),
+        r.get("A1_therm", {}).get("voltage"),
+        r.get("A2_pot1", {}).get("voltage"),
+        r.get("A3_pot2", {}).get("voltage"),
+    ]
+    voltages = [v for v in voltages if v is not None]
+    if len(voltages) < 2:
+        return True
+    return (max(voltages) - min(voltages)) > 0.05
+
+
 @app.route("/sensors")
 def sensors():
     data = load_sensor_data()
+    wired = sensors_wired(data)
+    accumulation = None if wired else get_sensor_accumulation()
     return render_template(
         "sensors.html",
         sensor_data=data,
+        sensors_wired=wired,
+        accumulation=accumulation,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 

@@ -38,10 +38,15 @@
   </div>
 
   {% else %}
-  <p style="color:var(--muted);font-size:0.8em;margin-bottom:1.5rem;">
+  <p style="color:var(--muted);font-size:0.8em;margin-bottom:{% if not sensors_wired and accumulation %}0.5rem{% else %}1.5rem{% endif %};">
     Last updated: {{ sensor_data.timestamp }} · updated every {{ sensor_data.interval_s }}s
     <meta http-equiv="refresh" content="{{ sensor_data.interval_s }}">
   </p>
+  {% if not sensors_wired and accumulation %}
+  <p style="color:var(--muted);font-size:0.75em;margin-bottom:1.5rem;opacity:0.7;">
+    {{ "{:,}".format(accumulation.total) }} readings accumulated since {{ accumulation.since }} · sensors not yet wired
+  </p>
+  {% endif %}
 
   {% set r = sensor_data.readings %}
 
