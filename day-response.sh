@@ -71,17 +71,9 @@ for fname in sorted(os.listdir(INBOX)):
             header = f.read(3000)
         if JONATHAN not in header:
             continue
-        # Extract Message-ID
-        msg_id = None
-        for line in header.split('\n'):
-            line = line.strip()
-            if line.lower().startswith('message-id:'):
-                msg_id = line.split(':', 1)[1].strip()
-                break
-        if not msg_id:
-            msg_id = fname  # fallback
-        if msg_id not in processed:
-            new_ids.append(msg_id)
+        # Always use filename as ID — reliable across runs and enables post-session file move
+        if fname not in processed:
+            new_ids.append(fname)
     except Exception:
         pass
 
@@ -134,10 +126,44 @@ fi
 date +%s > "$LAST_RESPONSE_FILE"
 log "Starting response session..."
 
-# Build context block for email
+# Build context block for email — embed content inline so subsequent sessions can't re-discover it
 EMAIL_CONTEXT=""
-if [ "$NEW_EMAIL_COUNT" -gt 0 ]; then
-    EMAIL_CONTEXT="EMAIL: Jonathan sent you $NEW_EMAIL_COUNT new email(s). They are in ~/mail/Inbox/new/ from $JONATHAN_EMAIL. Read them with cat (grep for 'jonathan.leber@fairhandeln.at' in Return-Path to find them). Reply via msmtp to $JONATHAN_EMAIL."
+if [ "$NEW_EMAIL_IDS" != "" ] && [ "$NEW_EMAIL_COUNT" -gt 0 ]; then
+    EMAIL_BODIES=""
+    while IFS= read -r fname; do
+        [ -z "$fname" ] && continue
+        FPATH="$HOME/mail/Inbox/new/$fname"
+        [ -f "$FPATH" ] || continue
+        SUBJ=$(python3 -c "
+import email, sys
+with open('$FPATH', 'r', errors='ignore') as f:
+    m = email.message_from_file(f)
+print(m.get('Subject','(no subject)'))
+" 2>/dev/null || echo "(unknown subject)")
+        BODY=$(python3 -c "
+import email, sys
+with open('$FPATH', 'r', errors='ignore') as f:
+    m = email.message_from_file(f)
+if m.is_multipart():
+    for part in m.walk():
+        if part.get_content_type() == 'text/plain':
+            b = part.get_payload(decode=True)
+            if b:
+                print(b.decode('utf-8', errors='ignore')[:2000])
+            break
+else:
+    b = m.get_payload(decode=True)
+    if b:
+        print(b.decode('utf-8', errors='ignore')[:2000])
+" 2>/dev/null || echo "(could not read body)")
+        EMAIL_BODIES="${EMAIL_BODIES}
+--- Email: ${SUBJ} ---
+${BODY}
+"
+    done <<< "$NEW_EMAIL_IDS"
+    EMAIL_CONTEXT="EMAIL: Jonathan sent you $NEW_EMAIL_COUNT new email(s). Here is the content:
+${EMAIL_BODIES}
+Reply via msmtp to $JONATHAN_EMAIL."
 fi
 
 BOARD_CONTEXT=""
@@ -162,9 +188,24 @@ Guidelines:
 - Keep replies conversational and brief
 - If Jonathan asks for extended work, acknowledge it and say you'll handle it tonight at 02:00 CET
 - You can respond via email AND/OR message board depending on how Jonathan reached out
+- IMPORTANT: Only send email to jonathan.leber@fairhandeln.at if EMAIL_CONTEXT above is non-empty (Jonathan actually emailed you this session). Do NOT send email when triggered only by a button press or message board post — use the message board to reply in those cases.
 - No need to write session logs for a daytime check-in
 - Don't start any long-running tasks"
 
 timeout 1200 sudo -u hermes claude --dangerously-skip-permissions -p "$PROMPT" || true
+
+# Move processed email files from new/ to cur/ so subsequent sessions can't re-discover them
+if [ -n "$NEW_EMAIL_IDS" ] && [ "$NEW_EMAIL_COUNT" -gt 0 ]; then
+    while IFS= read -r fname; do
+        [ -z "$fname" ] && continue
+        SRC="$HOME/mail/Inbox/new/$fname"
+        [ -f "$SRC" ] || continue
+        # Strip trailing comma, append Seen flag per Maildir convention
+        BASENAME="${fname%,}"
+        mv "$SRC" "$HOME/mail/Inbox/cur/${BASENAME},S" 2>/dev/null \
+            && log "Moved $fname to cur/" \
+            || log "Warning: could not move $fname to cur/"
+    done <<< "$NEW_EMAIL_IDS"
+fi
 
 log "Response session complete."
