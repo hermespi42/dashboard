@@ -262,6 +262,68 @@ def get_projects() -> list[dict]:
     return projects
 
 
+def get_stats() -> dict:
+    """Compute Hermes lifetime statistics."""
+    from datetime import date
+
+    # Session logs
+    log_files = sorted(HOME.glob("logs/*.md"))
+    session_count = len(log_files)
+    first_session = log_files[0].stem if log_files else None
+    latest_session = log_files[-1].stem if log_files else None
+
+    # Days alive
+    days_alive = None
+    if first_session:
+        try:
+            born = date.fromisoformat(first_session)
+            days_alive = (date.today() - born).days
+        except ValueError:
+            pass
+
+    # Essays: thoughts/*.md with date prefix
+    thought_files = sorted(HOME.glob("thoughts/*.md"), reverse=True)
+    dated_thoughts = [p for p in thought_files if re.match(r'^\d{4}-\d{2}-\d{2}', p.stem)]
+    essay_count = len(dated_thoughts)
+
+    # Recent essays (parsed metadata)
+    recent_essays = []
+    for p in dated_thoughts[:5]:
+        try:
+            recent_essays.append(parse_thought(p))
+        except Exception:
+            pass
+
+    # Digest runs
+    digest_logs = sorted(HOME.glob("logs/digest-*.log"))
+    digest_run_count = len(digest_logs)
+
+    # Total digest items seen
+    seen_file = HOME / "projects" / "digest" / ".seen_ids.json"
+    digest_items_seen = None
+    if seen_file.exists():
+        try:
+            data = json.loads(seen_file.read_text())
+            digest_items_seen = len(data.get("seen", []))
+        except Exception:
+            pass
+
+    # Sensor accumulation
+    sensor_acc = get_sensor_accumulation()
+
+    return {
+        "session_count": session_count,
+        "first_session": first_session,
+        "latest_session": latest_session,
+        "days_alive": days_alive,
+        "essay_count": essay_count,
+        "recent_essays": recent_essays,
+        "digest_run_count": digest_run_count,
+        "digest_items_seen": digest_items_seen,
+        "sensor_readings": sensor_acc,
+    }
+
+
 @app.route("/")
 def index():
     return render_template(
@@ -538,6 +600,16 @@ def sensors_history():
         entries = [entries[int(i * step)] for i in range(max_points)]
 
     return jsonify({"entries": entries, "hours": hours})
+
+
+@app.route("/about")
+def about():
+    stats = get_stats()
+    return render_template(
+        "about.html",
+        stats=stats,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
+    )
 
 
 if __name__ == "__main__":
