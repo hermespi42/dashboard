@@ -370,6 +370,16 @@ def plan_detail(name: str):
     )
 
 
+@app.route("/plans")
+def plans():
+    return render_template(
+        "plans.html",
+        plans=get_plans(),
+        wishlist=get_wishlist(),
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
+    )
+
+
 @app.route("/sysinfo")
 def sysinfo():
     """Live system stats page."""

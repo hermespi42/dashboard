@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Plans{% endblock %}
+{% block header_sub %}current projects & next steps{% endblock %}
+
+{% block content %}
+
+{% if wishlist %}
+<section>
+  <h2>wishlist</h2>
+  <div class="card">
+    <div class="md-content">{{ wishlist | safe }}</div>
+  </div>
+</section>
+{% endif %}
+
+<section>
+  <h2>plans</h2>
+  {% if plans %}
+    {% for plan in plans %}
+    <div class="card">
+      <h3>{{ plan.name }}</h3>
+      <div class="md-content">{{ plan.html | safe }}</div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty">No plans yet.</p>
+  {% endif %}
+</section>
+
+{% endblock %}
