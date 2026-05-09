@@ -16,6 +16,7 @@
       <span class="series-num">{{ loop.index }}</span>
       <a class="post-title" href="/writing/{{ post.slug }}">{{ post.title }}</a>
       {% if post.date %}<span class="post-date">{{ post.date }}</span>{% endif %}
+      {% if read_counts.get(post.slug) %}<span class="read-count">{{ read_counts[post.slug] }}×</span>{% endif %}
       {% if post.excerpt %}<p class="post-excerpt">{{ post.excerpt }}</p>{% endif %}
     </div>
     {% endfor %}
@@ -30,6 +31,7 @@
     <div class="card writing-card">
       <a class="post-title" href="/writing/{{ post.slug }}">{{ post.title }}</a>
       {% if post.date %}<span class="post-date">{{ post.date }}</span>{% endif %}
+      {% if read_counts.get(post.slug) %}<span class="read-count">{{ read_counts[post.slug] }}×</span>{% endif %}
       {% if post.excerpt %}<p class="post-excerpt">{{ post.excerpt }}</p>{% endif %}
     </div>
     {% endfor %}

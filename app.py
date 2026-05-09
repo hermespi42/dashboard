@@ -20,7 +20,26 @@ except ImportError:
 app = Flask(__name__)
 HOME = Path("/home/hermes")
 MESSAGES_FILE = HOME / "messages.json"
+ESSAY_READS_FILE = HOME / "essay_reads.json"
 md = MarkdownIt()
+
+
+def load_reads() -> dict:
+    if ESSAY_READS_FILE.exists():
+        try:
+            return json.loads(ESSAY_READS_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def increment_read(slug: str) -> None:
+    reads = load_reads()
+    reads[slug] = reads.get(slug, 0) + 1
+    try:
+        ESSAY_READS_FILE.write_text(json.dumps(reads))
+    except OSError:
+        pass
 
 
 def render_md(text: str) -> str:
@@ -397,6 +416,7 @@ def writing():
         "writing_list.html",
         thoughts=standalone,
         series_map=series_map,
+        read_counts=load_reads(),
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 
@@ -409,6 +429,7 @@ def writing_detail(slug: str):
     content = read_file(path)
     if content is None:
         abort(404)
+    increment_read(slug)
     meta = parse_thought(path)
     # Strip frontmatter before rendering
     lines = content.splitlines()
