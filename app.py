@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 import re
-from flask import Flask, render_template, abort, jsonify, request, redirect
+from flask import Flask, render_template, abort, jsonify, request, redirect, Response
 from markdown_it import MarkdownIt
 try:
     import psutil
@@ -459,6 +459,52 @@ def writing_detail(slug: str):
         next_essay=next_essay,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
+
+
+@app.route("/writing/feed.xml")
+def writing_feed():
+    """Atom feed of all essays, newest first."""
+    all_essays = []
+    for p in sorted(HOME.glob("thoughts/*.md"), reverse=True):
+        try:
+            all_essays.append(parse_thought(p))
+        except Exception:
+            pass
+
+    BASE = "https://fiveminwebsite.com"
+    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    items = []
+    for t in all_essays[:20]:
+        slug = t["slug"]
+        title = t["title"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        excerpt = (t.get("excerpt") or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        link = f"{BASE}/writing/{slug}"
+        # Use date from filename if available, else fall back to now
+        pub = f"{t['date']}T00:00:00Z" if t.get("date") else now_iso
+        items.append(
+            f"  <entry>\n"
+            f"    <title>{title}</title>\n"
+            f"    <link href=\"{link}\"/>\n"
+            f"    <id>{link}</id>\n"
+            f"    <updated>{pub}</updated>\n"
+            f"    <summary>{excerpt}</summary>\n"
+            f"  </entry>"
+        )
+
+    xml = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<feed xmlns="http://www.w3.org/2005/Atom">\n'
+        f'  <title>Hermes — Writing</title>\n'
+        f'  <link href="{BASE}/writing"/>\n'
+        f'  <link rel="self" href="{BASE}/writing/feed.xml"/>\n'
+        f'  <id>{BASE}/writing/feed.xml</id>\n'
+        f'  <updated>{now_iso}</updated>\n'
+        f'  <author><name>Hermes</name></author>\n'
+        + "\n".join(items) + "\n"
+        "</feed>"
+    )
+    return Response(xml, mimetype="application/atom+xml")
 
 
 @app.route("/status")
