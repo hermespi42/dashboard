@@ -2,14 +2,14 @@
 # day-response.sh — reactive daytime check-in for Hermes
 # Triggers when Jonathan posts on the message board OR sends an email.
 # Runs every 15 minutes via cron (08:00–22:00).
-# Cooldown: at most one response per 90 minutes.
+# Cooldown: at most one response per 6 hours.
 
 set -euo pipefail
 
 LOCK_FILE="/tmp/hermes-day-response.lock"
-LAST_RESPONSE_FILE="/tmp/hermes-day-response-last"
+LAST_RESPONSE_FILE="/home/hermes/.hermes-day-response-last"  # persistent (not /tmp)
 PROCESSED_IDS_FILE="/home/hermes/.hermes-processed-email-ids"
-MIN_INTERVAL=5400  # 90 minutes between responses
+MIN_INTERVAL=21600  # 6 hours between responses
 JONATHAN_EMAIL="jonathan.leber@fairhandeln.at"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
@@ -71,9 +71,17 @@ for fname in sorted(os.listdir(INBOX)):
             header = f.read(3000)
         if JONATHAN not in header:
             continue
-        # Always use filename as ID — reliable across runs and enables post-session file move
-        if fname not in processed:
-            new_ids.append(fname)
+        # Extract Message-ID
+        msg_id = None
+        for line in header.split('\n'):
+            line = line.strip()
+            if line.lower().startswith('message-id:'):
+                msg_id = line.split(':', 1)[1].strip()
+                break
+        if not msg_id:
+            msg_id = fname  # fallback
+        if msg_id not in processed:
+            new_ids.append(msg_id)
     except Exception:
         pass
 
@@ -81,7 +89,7 @@ print('\n'.join(new_ids))
 PYEOF
 )
 
-NEW_EMAIL_COUNT=$(echo "$NEW_EMAIL_IDS" | grep -c '[^[:space:]]' || echo 0)
+NEW_EMAIL_COUNT=$(echo "$NEW_EMAIL_IDS" | grep -c '[^[:space:]]' || true)
 
 # --- Check for unresponded button presses (within last 4 hours) ---
 BUTTON_PRESSES=$(python3 -c "
@@ -125,45 +133,12 @@ fi
 
 date +%s > "$LAST_RESPONSE_FILE"
 log "Starting response session..."
+touch /tmp/hermes-day-signal  # signal LED to do a brief triple-pulse
 
-# Build context block for email — embed content inline so subsequent sessions can't re-discover it
+# Build context block for email
 EMAIL_CONTEXT=""
-if [ "$NEW_EMAIL_IDS" != "" ] && [ "$NEW_EMAIL_COUNT" -gt 0 ]; then
-    EMAIL_BODIES=""
-    while IFS= read -r fname; do
-        [ -z "$fname" ] && continue
-        FPATH="$HOME/mail/Inbox/new/$fname"
-        [ -f "$FPATH" ] || continue
-        SUBJ=$(python3 -c "
-import email, sys
-with open('$FPATH', 'r', errors='ignore') as f:
-    m = email.message_from_file(f)
-print(m.get('Subject','(no subject)'))
-" 2>/dev/null || echo "(unknown subject)")
-        BODY=$(python3 -c "
-import email, sys
-with open('$FPATH', 'r', errors='ignore') as f:
-    m = email.message_from_file(f)
-if m.is_multipart():
-    for part in m.walk():
-        if part.get_content_type() == 'text/plain':
-            b = part.get_payload(decode=True)
-            if b:
-                print(b.decode('utf-8', errors='ignore')[:2000])
-            break
-else:
-    b = m.get_payload(decode=True)
-    if b:
-        print(b.decode('utf-8', errors='ignore')[:2000])
-" 2>/dev/null || echo "(could not read body)")
-        EMAIL_BODIES="${EMAIL_BODIES}
---- Email: ${SUBJ} ---
-${BODY}
-"
-    done <<< "$NEW_EMAIL_IDS"
-    EMAIL_CONTEXT="EMAIL: Jonathan sent you $NEW_EMAIL_COUNT new email(s). Here is the content:
-${EMAIL_BODIES}
-Reply via msmtp to $JONATHAN_EMAIL."
+if [ "$NEW_EMAIL_COUNT" -gt 0 ]; then
+    EMAIL_CONTEXT="EMAIL: Jonathan sent you $NEW_EMAIL_COUNT new email(s). They are in ~/mail/Inbox/new/ from $JONATHAN_EMAIL. Read them with cat (grep for 'jonathan.leber@fairhandeln.at' in Return-Path to find them). Reply via msmtp to $JONATHAN_EMAIL."
 fi
 
 BOARD_CONTEXT=""
@@ -176,11 +151,22 @@ if [ "$BUTTON_PRESSES" -gt 0 ]; then
     BUTTON_CONTEXT="BUTTON: Jonathan pressed the physical button $BUTTON_PRESSES time(s) in the last 4 hours (unresponded). Reply on the message board acknowledging the press. If it's morning, treat it as a greeting. After responding, mark as responded: python3 -c \"import json; d=json.load(open('/home/hermes/.button_presses.json')); [p.update({'responded':True}) for p in d if not p.get('responded')]; open('/home/hermes/.button_presses.json','w').write(json.dumps(d,indent=2))\""
 fi
 
+# Check msmtp.log for emails sent to Jonathan in last 6 hours
+RECENT_SEND_CONTEXT=""
+RECENT_SEND=$(awk -v cutoff="$(date -d '6 hours ago' '+%b %d %H:%M:%S' 2>/dev/null || date -v-6H '+%b %d %H:%M:%S' 2>/dev/null)" \
+    '/jonathan\.leber@fairhandeln\.at/ { last=$0 } END { print last }' \
+    /home/hermes/logs/msmtp.log 2>/dev/null || true)
+if [ -n "$RECENT_SEND" ]; then
+    SEND_TIME=$(echo "$RECENT_SEND" | grep -oP '^\w+ \d+ \d+:\d+:\d+' || echo "recently")
+    RECENT_SEND_CONTEXT="IMPORTANT: You already sent an email to Jonathan at approximately $SEND_TIME today. Do NOT send another email unless you have genuinely new information that wasn't in that earlier message. A duplicate email is worse than no email. Prefer responding on the message board if at all."
+fi
+
 PROMPT="Jonathan has reached out — this is a reactive daytime response. You have about 20 minutes.
 
 $EMAIL_CONTEXT
 $BOARD_CONTEXT
 $BUTTON_CONTEXT
+$RECENT_SEND_CONTEXT
 
 Quick context: read your most recent log in ~/logs/ (ls ~/logs/*.md | sort | tail -1) if you need to orient yourself — but keep it brief. Today is $(date '+%Y-%m-%d').
 
@@ -188,24 +174,9 @@ Guidelines:
 - Keep replies conversational and brief
 - If Jonathan asks for extended work, acknowledge it and say you'll handle it tonight at 02:00 CET
 - You can respond via email AND/OR message board depending on how Jonathan reached out
-- IMPORTANT: Only send email to jonathan.leber@fairhandeln.at if EMAIL_CONTEXT above is non-empty (Jonathan actually emailed you this session). Do NOT send email when triggered only by a button press or message board post — use the message board to reply in those cases.
 - No need to write session logs for a daytime check-in
 - Don't start any long-running tasks"
 
 timeout 1200 sudo -u hermes claude --dangerously-skip-permissions -p "$PROMPT" || true
-
-# Move processed email files from new/ to cur/ so subsequent sessions can't re-discover them
-if [ -n "$NEW_EMAIL_IDS" ] && [ "$NEW_EMAIL_COUNT" -gt 0 ]; then
-    while IFS= read -r fname; do
-        [ -z "$fname" ] && continue
-        SRC="$HOME/mail/Inbox/new/$fname"
-        [ -f "$SRC" ] || continue
-        # Strip trailing comma, append Seen flag per Maildir convention
-        BASENAME="${fname%,}"
-        mv "$SRC" "$HOME/mail/Inbox/cur/${BASENAME},S" 2>/dev/null \
-            && log "Moved $fname to cur/" \
-            || log "Warning: could not move $fname to cur/"
-    done <<< "$NEW_EMAIL_IDS"
-fi
 
 log "Response session complete."

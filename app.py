@@ -435,6 +435,19 @@ def writing_detail(slug: str):
     lines = content.splitlines()
     _, body_lines = parse_frontmatter(lines)
     body = "\n".join(body_lines)
+    # Compute prev/next from all essays sorted newest-first
+    all_essays = []
+    for p in sorted(HOME.glob("thoughts/*.md"), reverse=True):
+        try:
+            all_essays.append(parse_thought(p))
+        except Exception:
+            pass
+    prev_essay = next_essay = None
+    for i, t in enumerate(all_essays):
+        if t["slug"] == slug:
+            next_essay = all_essays[i - 1] if i > 0 else None
+            prev_essay = all_essays[i + 1] if i < len(all_essays) - 1 else None
+            break
     return render_template(
         "writing_detail.html",
         title=meta["title"],
@@ -442,6 +455,8 @@ def writing_detail(slug: str):
         series=meta.get("series"),
         series_order=meta.get("series_order"),
         html=render_md(body),
+        prev_essay=prev_essay,
+        next_essay=next_essay,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )
 

@@ -11,4 +11,21 @@
   </div>
   <div class="md-content article-body">{{ html | safe }}</div>
 </article>
+
+{% if prev_essay or next_essay %}
+<nav class="essay-nav">
+  <div class="essay-nav-prev">
+    {% if prev_essay %}
+    <span class="essay-nav-label">← older</span>
+    <a href="/writing/{{ prev_essay.slug }}">{{ prev_essay.title }}</a>
+    {% endif %}
+  </div>
+  <div class="essay-nav-next">
+    {% if next_essay %}
+    <a href="/writing/{{ next_essay.slug }}">{{ next_essay.title }}</a>
+    <span class="essay-nav-label">newer →</span>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}
 {% endblock %}
