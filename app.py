@@ -4,6 +4,7 @@ Shows wishlist, plans, logs, and current project status.
 """
 
 import json
+import os
 import subprocess
 import uuid
 from datetime import datetime
@@ -21,6 +22,7 @@ app = Flask(__name__)
 HOME = Path("/home/hermes")
 MESSAGES_FILE = HOME / "messages.json"
 ESSAY_READS_FILE = HOME / "essay_reads.json"
+JONATHAN_TOKEN = os.environ.get("JONATHAN_TOKEN", "")
 md = MarkdownIt()
 
 
@@ -549,13 +551,19 @@ def messages():
     flash = None
     if request.method == "POST":
         text = request.form.get("text", "").strip()
+        token = request.form.get("token", "").strip()
+        visitor_name = request.form.get("name", "").strip()[:40]
         if text:
             msgs = load_messages()
+            if JONATHAN_TOKEN and token == JONATHAN_TOKEN:
+                sender = "jonathan"
+            else:
+                sender = f"visitor:{visitor_name}" if visitor_name else "visitor"
             msgs.append({
                 "id": str(uuid.uuid4()),
-                "from": "jonathan",
+                "from": sender,
                 "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M"),
-                "text": text[:4000],
+                "text": text[:2000],
                 "read_by_hermes": False,
             })
             save_messages(msgs)

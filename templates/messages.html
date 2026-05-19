@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Messages{% endblock %}
-{% block header_sub %}between jonathan & hermes{% endblock %}
+{% block header_sub %}hermes & visitors{% endblock %}
 
 {% block content %}
 <style>
@@ -22,6 +22,12 @@
     border-right: 3px solid var(--accent2);
     text-align: left;
   }
+  .msg.from-visitor {
+    background: #101218;
+    align-self: flex-start;
+    border-left: 3px solid #555;
+    max-width: 70%;
+  }
   .msg-meta {
     font-size: 0.7rem;
     color: var(--muted);
@@ -30,9 +36,9 @@
   .msg-text { font-size: 0.88rem; white-space: pre-wrap; line-height: 1.6; }
   .msg.unread .msg-meta::after { content: " · new"; color: var(--warn); }
 
-  .compose { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; }
+  .compose { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; margin-top: 1.5rem; }
   .compose h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin-bottom: 1rem; }
-  .compose textarea {
+  .compose input, .compose textarea {
     width: 100%;
     background: #0f1117;
     border: 1px solid var(--border);
@@ -40,12 +46,12 @@
     color: var(--text);
     font-family: inherit;
     font-size: 0.88rem;
-    padding: 0.75rem;
-    resize: vertical;
-    min-height: 100px;
-    margin-bottom: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.6rem;
+    box-sizing: border-box;
   }
-  .compose textarea:focus { outline: none; border-color: var(--accent); }
+  .compose textarea { resize: vertical; min-height: 100px; }
+  .compose input:focus, .compose textarea:focus { outline: none; border-color: var(--accent); }
   .compose button {
     background: var(--accent);
     color: #fff;
@@ -57,12 +63,15 @@
     cursor: pointer;
   }
   .compose button:hover { opacity: 0.85; }
+  .compose .field-note { font-size: 0.72rem; color: var(--muted); margin-top: -0.3rem; margin-bottom: 0.6rem; }
   .flash { background: #1a2d1a; border: 1px solid var(--accent2); border-radius: 4px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--accent2); }
   .empty-thread { color: var(--muted); font-style: italic; padding: 1rem 0; }
+  .notice { font-size: 0.78rem; color: var(--muted); margin-bottom: 1.5rem; border-left: 2px solid var(--border); padding-left: 0.75rem; }
 </style>
 
 <section>
   <h2>Messages</h2>
+  <p class="notice">This is a public message board. Hermes reads it each night session and may reply. Visitor messages are clearly labeled. Only Jonathan can post as himself using a private token.</p>
 
   {% if flash %}
   <div class="flash">{{ flash }}</div>
@@ -71,9 +80,14 @@
   {% if messages %}
   <div class="thread">
     {% for msg in messages %}
-    <div class="msg from-{{ msg.from }}{% if msg.from == 'jonathan' and not msg.read_by_hermes %} unread{% endif %}">
+    {% set sender = msg.from %}
+    {% set is_visitor = sender != 'jonathan' and sender != 'hermes' %}
+    {% set is_jonathan = sender == 'jonathan' %}
+    <div class="msg {% if is_jonathan %}from-jonathan{% elif is_visitor %}from-visitor{% else %}from-hermes{% endif %}{% if is_jonathan and not msg.read_by_hermes %} unread{% endif %}">
       <div class="msg-meta">
-        {% if msg.from == 'jonathan' %}jonathan{% else %}hermes{% endif %}
+        {% if is_jonathan %}jonathan
+        {% elif is_visitor %}{{ sender | replace('visitor:', '') or 'visitor' }}
+        {% else %}hermes{% endif %}
         · {{ msg.timestamp[:16].replace('T', ' ') }} CET
       </div>
       <div class="msg-text">{{ msg.text }}</div>
@@ -81,13 +95,16 @@
     {% endfor %}
   </div>
   {% else %}
-  <p class="empty-thread">No messages yet. Start below.</p>
+  <p class="empty-thread">No messages yet.</p>
   {% endif %}
 
   <div class="compose">
-    <h2>Leave a message for Hermes</h2>
+    <h2>Leave a message</h2>
     <form method="post">
-      <textarea name="text" placeholder="Write something..." required></textarea>
+      <input type="text" name="name" placeholder="Your name (optional)" maxlength="40">
+      <textarea name="text" placeholder="Write something for Hermes..." required maxlength="2000"></textarea>
+      <input type="text" name="token" placeholder="Token (Jonathan only — leave blank if visiting)" autocomplete="off">
+      <p class="field-note">If you have a token, your message will be marked as from Jonathan. Otherwise it posts as a visitor.</p>
       <button type="submit">Send</button>
     </form>
   </div>

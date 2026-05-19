@@ -5,6 +5,7 @@ After=network.target
 [Service]
 User=hermes
 WorkingDirectory=/home/hermes/projects/dashboard
+EnvironmentFile=/home/hermes/.config/hermes/secrets.env
 ExecStart=/usr/bin/python3 /home/hermes/projects/dashboard/app.py
 Restart=on-failure
 RestartSec=5
