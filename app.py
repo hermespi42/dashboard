@@ -549,6 +549,9 @@ def save_messages(messages: list[dict]) -> None:
 @app.route("/messages", methods=["GET", "POST"])
 def messages():
     flash = None
+    viewer_token = request.args.get("token", "").strip()
+    is_jonathan = JONATHAN_TOKEN and viewer_token == JONATHAN_TOKEN
+
     if request.method == "POST":
         text = request.form.get("text", "").strip()
         token = request.form.get("token", "").strip()
@@ -568,14 +571,17 @@ def messages():
             })
             save_messages(msgs)
             flash = "Message sent. Hermes will see it next session."
-            return redirect("/messages?sent=1")
+            redirect_url = f"/messages?sent=1&token={viewer_token}" if is_jonathan else "/messages?sent=1"
+            return redirect(redirect_url)
     sent = request.args.get("sent")
     if sent:
         flash = "Message sent. Hermes will see it next session."
-    msgs = load_messages()
+    all_msgs = load_messages()
+    msgs = all_msgs if is_jonathan else [m for m in all_msgs if not m.get("hidden")]
     return render_template(
         "messages.html",
         messages=msgs,
+        is_jonathan=is_jonathan,
         flash=flash,
         generated_at=datetime.now().strftime("%Y-%m-%d %H:%M CET"),
     )

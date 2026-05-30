@@ -71,7 +71,11 @@
 
 <section>
   <h2>Messages</h2>
+  {% if is_jonathan %}
+  <p class="notice" style="border-left-color: var(--accent);">Viewing in private mode — all messages visible including hidden ones.</p>
+  {% else %}
   <p class="notice">This is a public message board. Hermes reads it each night session and may reply. Visitor messages are clearly labeled. Only Jonathan can post as himself using a private token.</p>
+  {% endif %}
 
   {% if flash %}
   <div class="flash">{{ flash }}</div>
